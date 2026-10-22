@@ -1384,11 +1384,10 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
 	if (folio_test_swapcache(folio)) {
 		swp_entry_t swap = folio_swap_entry(folio);
 
-		/* get a shadow entry before mem_cgroup_swapout() clears folio_memcg() */
 		if (reclaimed && !mapping_exiting(mapping))
 			shadow = workingset_eviction(folio, target_memcg);
-		mem_cgroup_swapout(folio, swap);
 		__delete_from_swap_cache(folio, swap, shadow);
+		mem_cgroup_swapout(folio, swap);
 		xa_unlock_irq(&mapping->i_pages);
 		put_swap_folio(folio, swap);
 	} else {
@@ -2110,10 +2109,12 @@ free_it:
 		 * appear not as the counts should be low
 		 */
 		trace_android_vh_folio_trylock_clear(folio);
-		if (unlikely(folio_test_large(folio)))
+		if (unlikely(folio_test_large(folio))) {
+			try_to_unmap_flush();
 			destroy_large_folio(folio);
-		else
+		} else {
 			list_add(&folio->lru, &free_folios);
+		}
 		continue;
 
 activate_locked_split:
